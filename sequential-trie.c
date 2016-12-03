@@ -410,17 +410,26 @@ int delete  (const char *string, size_t strlen) {
  * Use any policy you like to select the node.
  */
 int drop_one_node  () {
-    // Your code here
-    return 0;
+  char* string = malloc(128);
+  string[127] = '\0';
+  struct trie_node *delete_node = root->children;
+  strcat(string,delete_node->key);
+  while(delete_node->next != NULL && delete_node->children != NULL){
+    delete_node = delete_node->next;
+    strcat(string,delete_node->key);
+    delete_node = delete_node->children;
+    strcat(string,delete_node->key);
+  }
+    return delete(string, sizeof(string));
+
 }
 
 /* Check the total node count; see if we have exceeded a the max.
  */
 void check_max_nodes  () {
     while (node_count > max_count) {
-        printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
+      drop_one_node();
         break;
-        //drop_one_node();
     }
 }
 
