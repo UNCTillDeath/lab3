@@ -9,6 +9,10 @@
 #include <unistd.h>
 #include "trie.h"
 
+/*
+*This LRU_List thing was an idea I tackled but failed at so far. Maybe we'll come back to this
+*
+*/
 struct LRU_List {
 	char key[MAX_KEY];
 	unsigned int strlen;
