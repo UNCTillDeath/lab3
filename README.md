@@ -16,3 +16,11 @@ If it is, it will signal node_threshold_cv
 
 check_max_nodes() waits on the signal, then loops until there are less than max_count nodes. 
 will loop infinitely because drop_one_node() doesn't work/ isn't included in mutex-trie.c/ and the call to drop_one_node is commented out
+
+EX4.
+rw-trie.c has similar code to mutex-trie.c but the mutex lock has been replaced by rwlocks.
+mutex lock/unlock operations have been replaced by rwunlocks
+I locked functions that made changes to the shared code with a wrlock
+I locked functions that only read shared code with a rdlock
+functions that only read(that use locks): search() and print()
+*note check_max_nodes() uses wrlock because it will eventually call the drop_one_node() func when it's fixed 
