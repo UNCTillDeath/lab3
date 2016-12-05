@@ -22,7 +22,7 @@ struct trie_node {
 static struct trie_node * root = NULL;
 static int node_count = 0;
 static int max_count = 100;  //Try to stay at no more than 100 nodes
-
+static int MAX_KEY = 64;
 
 pthread_cond_t node_threshold_cv; // cv stands for condition variable
 

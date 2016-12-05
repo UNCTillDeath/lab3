@@ -13,6 +13,19 @@
 #include <stdlib.h>
 #include "trie.h"
 
+struct trie_node {
+    struct trie_node *next;  /* parent list */
+    unsigned int strlen; /* Length of the key */
+    int32_t ip4_address; /* 4 octets */
+    struct trie_node *children; /* Sorted list of children */
+    char key[MAX_KEY]; /* Up to 64 chars */
+};
+
+static struct trie_node * root = NULL;
+static int node_count = 0;
+static int max_count = 100;  //Try to stay at no more than 100 nodes
+static int MAX_KEY = 64;
+
 void init(int numthreads) {
     /* Your code here */
 }

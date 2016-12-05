@@ -29,9 +29,11 @@ struct trie_node {
     struct LRU_List *tail; /* most recently used node */
 };
 
+
 static struct trie_node * root = NULL;
 static int node_count = 0;
 static int max_count = 100;  //Try to stay at no more than 100 nodes
+static int MAX_KEY = 64;
 
 struct trie_node * new_leaf (const char *string, size_t strlen, int32_t ip4_address) {
     struct trie_node *new_node = malloc(sizeof(struct trie_node));
