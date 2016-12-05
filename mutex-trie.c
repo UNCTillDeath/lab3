@@ -16,7 +16,7 @@ struct trie_node {
     unsigned int strlen; /* Length of the key */
     int32_t ip4_address; /* 4 octets */
     struct trie_node *children; /* Sorted list of children */
-    char key[MAX_KEY]; /* Up to 64 chars */
+    char key[64]; /* Up to 64 chars */
 };
 
 static struct trie_node * root = NULL;
@@ -28,7 +28,7 @@ pthread_mutex_t trie_lock; // full trie_lock
 pthread_cond_t node_threshold_cv; // cv stands for condition variable
 
 struct trie_node * new_leaf (const char *string, size_t strlen, int32_t ip4_address) {
-    
+
 
     struct trie_node *new_node = malloc(sizeof(struct trie_node));
     node_count++;
@@ -479,7 +479,7 @@ int delete  (const char *string, size_t strlen) {
 
 /* Check the total node count; see if we have exceeded a the max.
  */
-void check_max_nodes  () 
+void check_max_nodes  ()
 {
     pthread_mutex_lock(&trie_lock);
     while(node_count < max_count)
@@ -493,7 +493,7 @@ void check_max_nodes  ()
         }
     }
     pthread_mutex_unlock(&trie_lock);
-    
+
 }
 
 void _print (struct trie_node *node) {

@@ -14,7 +14,7 @@
 *
 */
 struct LRU_List {
-	char key[MAX_KEY];
+	char key[64];
 	unsigned int strlen;
 	struct LRU_List *next;
 };
@@ -24,7 +24,7 @@ struct trie_node {
     unsigned int strlen; /* Length of the key */
     int32_t ip4_address; /* 4 octets */
     struct trie_node *children; /* Sorted list of children */
-    char key[MAX_KEY]; /* Up to 64 chars */
+    char key[64]; /* Up to 64 chars */
     struct LRU_List *next_recently_used; /* Last accessed node */
     struct LRU_List *tail; /* most recently used node */
 };
@@ -71,7 +71,7 @@ int compare_keys (const char *string1, int len1, const char *string2, int len2, 
     char scratch[MAX_KEY];
     assert (len1 > 0);
     assert (len2 > 0);
-    // Take the max of the two keys, treating the front as if it were 
+    // Take the max of the two keys, treating the front as if it were
     // filled with spaces, just to ensure a total order on keys.
     if (len1 < len2) {
         keylen = len2;
@@ -87,7 +87,7 @@ int compare_keys (const char *string1, int len1, const char *string2, int len2, 
         string2 = scratch;
     } else
         keylen = len1; // == len2
-      
+
     assert (keylen > 0);
     if (pKeylen)
         *pKeylen = keylen;
@@ -119,16 +119,16 @@ void shutdown_delete_thread() {
 
 /* Recursive helper function.
  * Returns a pointer to the node if found.
- * Stores an optional pointer to the 
+ * Stores an optional pointer to the
  * parent, or what should be the parent if not found.
- * 
+ *
  */
-struct trie_node * 
+struct trie_node *
 _search (struct trie_node *node, const char *string, size_t strlen) {
-	 
+
     int keylen, cmp;
 
-    // First things first, check if we are NULL 
+    // First things first, check if we are NULL
     if (node == NULL) return NULL;
 
     assert(node->strlen <= MAX_KEY);
@@ -167,13 +167,13 @@ int search  (const char *string, size_t strlen, int32_t *ip4_address) {
     struct trie_node *found;
 
     assert(strlen <= MAX_KEY);
-    
+
     // Skip strings of length 0
     if (strlen == 0)
         return 0;
 
     found = _search(root, string, strlen);
-  
+
     if (found && ip4_address)
         *ip4_address = found->ip4_address;
 
@@ -181,12 +181,12 @@ int search  (const char *string, size_t strlen, int32_t *ip4_address) {
 }
 
 /* Recursive helper function */
-int _insert (const char *string, size_t strlen, int32_t ip4_address, 
+int _insert (const char *string, size_t strlen, int32_t ip4_address,
              struct trie_node *node, struct trie_node *parent, struct trie_node *left) {
 
     int cmp, keylen;
 
-    // First things first, check if we are NULL 
+    // First things first, check if we are NULL
     assert (node != NULL);
     assert (node->strlen <= MAX_KEY);
 
@@ -208,7 +208,7 @@ int _insert (const char *string, size_t strlen, int32_t ip4_address,
             new_node->children = node;
             new_node->next = node->next;
             node->next = NULL;
-            
+
             assert ((!parent) || (!left));
 
             if (parent) {
@@ -221,7 +221,7 @@ int _insert (const char *string, size_t strlen, int32_t ip4_address,
             return 1;
 
         } else if (strlen > keylen) {
-      
+
             if (node->children == NULL) {
                 // Insert leaf here
                 struct trie_node *new_node = new_leaf (string, strlen - keylen, ip4_address);
@@ -246,7 +246,7 @@ int _insert (const char *string, size_t strlen, int32_t ip4_address,
         /* Is there any common substring? */
         int i, cmp2, keylen2, overlap = 0;
         for (i = 1; i < keylen; i++) {
-            cmp2 = compare_keys_substring (&node->key[i], node->strlen - i, 
+            cmp2 = compare_keys_substring (&node->key[i], node->strlen - i,
                                            &string[i], strlen - i, &keylen2);
             assert (keylen2 > 0);
             if (cmp2 == 0) {
@@ -331,16 +331,16 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
 
 /* Recursive helper function.
  * Returns a pointer to the node if found.
- * Stores an optional pointer to the 
+ * Stores an optional pointer to the
  * parent, or what should be the parent if not found.
- * 
+ *
  */
-struct trie_node * 
-_delete (struct trie_node *node, const char *string, 
+struct trie_node *
+_delete (struct trie_node *node, const char *string,
          size_t strlen) {
     int keylen, cmp;
 
-    // First things first, check if we are NULL 
+    // First things first, check if we are NULL
     if (node == NULL) return NULL;
 
     assert(node->strlen < MAX_KEY);
@@ -364,16 +364,16 @@ _delete (struct trie_node *node, const char *string,
                     free(found);
                     node_count--;
                 }
-	
+
                 /* Delete the root node if we empty the tree */
                 if (node == root && node->children == NULL && node->ip4_address == 0) {
                     root = node->next;
                     free(node);
                     node_count--;
                 }
-	
+
                 return node; /* Recursively delete needless interior nodes */
-            } else 
+            } else
                 return NULL;
         } else {
             assert (strlen == keylen);
@@ -387,9 +387,9 @@ _delete (struct trie_node *node, const char *string,
                     root = node->next;
                     free(node);
                     node_count--;
-                    return (struct trie_node *) 0x100100; /* XXX: Don't use this pointer for anything except 
+                    return (struct trie_node *) 0x100100; /* XXX: Don't use this pointer for anything except
                                                            * comparison with NULL, since the memory is freed.
-                                                           * Return a "poison" pointer that will probably 
+                                                           * Return a "poison" pointer that will probably
                                                            * segfault if used.
                                                            */
                 }
@@ -413,12 +413,14 @@ _delete (struct trie_node *node, const char *string,
                     node->next = found->next;
                     free(found);
                     node_count--;
-                }       
-	
+                }
+                printf("Node found: %s\n", string);
                 return node; /* Recursively delete needless interior nodes */
             }
+            printf("Node not found\n");
             return NULL;
         } else {
+            printf("IDK what happened");
             // Quit early
             return NULL;
         }
@@ -430,8 +432,10 @@ int delete  (const char *string, size_t strlen) {
     if (strlen == 0)
         return 0;
 
+      if(search(string, strlen, 0)) printf("node found via search \n\n\n\n\n\n\n\n\n\n");
+      else printf("Search yeilded no results \n");
     assert(strlen <= MAX_KEY);
-
+    printf("current count before deletion: %d, deleting: %s\n", node_count, string);
     int rv = (NULL != _delete(root, string, strlen));
     assert_invariants();
     printf("current count after deletion: %d\n", node_count);
@@ -442,17 +446,55 @@ int delete  (const char *string, size_t strlen) {
     return rv;
 }
 
+char* combineKey(char* prefix, char* suffix){
+  strncat(prefix, suffix, MAX_KEY - strlen(suffix)); // append old stuff
+  return prefix;
+}
 
-/* Find one node to remove from the tree. 
+
+/* Find one node to remove from the tree.
  * Use any policy you like to select the node.
  * I am looping until the last child, then, if the last child has a next, I loop until the last next.
  */
 int drop_one_node  () {
 
-	printf("we in here\n");
-	char key_to_delete[MAX_KEY+1]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
-	key_to_delete[0] = '\0';
 
+	printf("we in here\n\n\n\n\n\n\n\n\n\n\n\n");
+	char key_to_delete[MAX_KEY+1]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+	//key_to_delete[0] = '\0';
+
+    struct trie_node *current = root->children;
+    //assert(root->children);
+
+    if(!(current->children)) // current doesn't have children
+    {
+      printf("Found key on first level\n");
+      strncpy(key_to_delete, current->key, MAX_KEY);
+    }else{
+      while(current != NULL){
+          if(!(current->children)){
+              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
+              printf("Key to delete %s\n", key_to_delete);
+              break;
+          }else if(current->next == NULL){
+              printf("Prefix: %s \n Suffix: %s\n", current->key, key_to_delete);
+              printf("Combining keys\n");
+              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
+              printf("Key to delete %s\n", key_to_delete);
+              current = current->children;
+          }else{
+              printf("Going to next node\n");
+              current = current->next;
+          }
+        }
+      }
+      printf("Key: %s\n", key_to_delete);
+      if(delete(key_to_delete, strlen(key_to_delete))){
+        printf("Delete Successful\n");
+
+        return 0;
+    } else return 1;
+/*
     if (!root || !(root->children))
     {
     	return 0;
@@ -469,18 +511,22 @@ int drop_one_node  () {
     {
 	    for( ; current->children; current = current->children)
 	    {
+        if(current->children == NULL){
+          break;
+        }
 	    	char *temp_prefix = strndup(current->key, MAX_KEY);
 	    	char *temp_suffix = strndup(key_to_delete, MAX_KEY); // old key_to_delete
 
 	    	strncpy(key_to_delete, temp_prefix, (MAX_KEY - strlen(key_to_delete))); // make prefix take over key_to_delete // strlen will write over till MAX_KEY - len(key) null bytes
 	    	strncat(key_to_delete, temp_suffix, MAX_KEY - strlen(key_to_delete)); // append old stuff
-	    	
+
 	    	free(temp_prefix);
 	    	free(temp_suffix);
+        printf("Key to delete %s\n", key_to_delete);
 	    }
 	}
 
-	
+
 	for (; current->next; current = current->next)  // loop until current is the tail
 	{
 
@@ -491,16 +537,20 @@ int drop_one_node  () {
 
 	strncpy(key_to_delete, temp_prefix, (MAX_KEY - strlen(key_to_delete))); // make prefix take over key_to_delete // strlen will write over till MAX_KEY - len(key) null bytes
 	strncat(key_to_delete, temp_suffix, MAX_KEY - strlen(key_to_delete)); // append old stuff
-	
+
 	free(temp_prefix);
 	free(temp_suffix);
-	
-    
 
-    
+
+  printf("Key to delete %s\n", key_to_delete);
+
+
 	printf("about to delete: %s\n", key_to_delete);
-    delete(key_to_delete, strlen(key_to_delete));
-
+    if(!delete(key_to_delete, strlen(key_to_delete))) {
+      printf("DELETE DIDNT WORK FAM \n");
+      return 1;
+    }
+*/
     return 0;
 }
 
@@ -513,12 +563,16 @@ void check_max_nodes  () {
     	sleep(3);
         //printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
         //break;
-        drop_one_node();
+        if(drop_one_node()){
+          printf("drop_one_node failed");
+          break;
+        }
+
     }
 }
 
 void _print (struct trie_node *node) {
-    printf ("Node at %p.  Key %.*s (%d), IP %d.  Next %p, Children %p\n", 
+    printf ("Node at %p.  Key %.*s (%d), IP %d.  Next %p, Children %p\n",
             node, node->strlen, node->key, node->strlen, node->ip4_address, node->next, node->children);
     if (node->children)
         _print(node->children);
@@ -533,21 +587,22 @@ void print() {
         _print(root);
 }
 
+
 int _assert_invariants (struct trie_node *node, int prefix_length, int *error) {
     int count = 1;
 
     int len = prefix_length + node->strlen;
     if (len > MAX_KEY) {
-        printf("key too long at node %p.  Key %.*s (%d), IP %d.  Next %p, Children %p\n", 
+        printf("key too long at node %p.  Key %.*s (%d), IP %d.  Next %p, Children %p\n",
                node, node->strlen, node->key, node->strlen, node->ip4_address, node->next, node->children);
         *error = 1;
         return count;
     }
-    
+
     if (node->children) {
         count += _assert_invariants(node->children, len, error);
         if (*error) {
-            printf("Unwinding tree on error: node %p.  Key %.*s (%d), IP %d.  Next %p, Children %p\n", 
+            printf("Unwinding tree on error: node %p.  Key %.*s (%d), IP %d.  Next %p, Children %p\n",
                    node, node->strlen, node->key, node->strlen, node->ip4_address, node->next, node->children);
             return count;
         }
@@ -561,12 +616,12 @@ int _assert_invariants (struct trie_node *node, int prefix_length, int *error) {
 }
 
 void assert_invariants () {
-#ifdef DEBUG    
+#ifdef DEBUG
     int err = 0;
     if (root) {
         int count = _assert_invariants(root, 0, &err);
         if (err) print();
         assert(count == node_count);
     }
-#endif // DEBUG    
+#endif // DEBUG
 }

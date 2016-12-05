@@ -16,7 +16,7 @@ struct trie_node {
     unsigned int strlen; /* Length of the key */
     int32_t ip4_address; /* 4 octets */
     struct trie_node *children; /* Sorted list of children */
-    char key[MAX_KEY]; /* Up to 64 chars */
+    char key[64]; /* Up to 64 chars */
 };
 
 static struct trie_node * root = NULL;
@@ -30,7 +30,7 @@ pthread_rwlock_t read_write_lock;
 
 
 struct trie_node * new_leaf (const char *string, size_t strlen, int32_t ip4_address) {
-    
+
 
     struct trie_node *new_node = malloc(sizeof(struct trie_node));
     node_count++;
@@ -481,12 +481,12 @@ int delete  (const char *string, size_t strlen) {
 
 /* Check the total node count; see if we have exceeded a the max.
  */
-void check_max_nodes  () 
+void check_max_nodes  ()
 {
     pthread_rwlock_wrlock(&read_write_lock);
     while(node_count < max_count)
     {
-        pthread_cond_wait(&node_threshold_cv, &read_write_lock);
+        //pthread_cond_wait(&node_threshold_cv, &read_write_lock);
         while (node_count > max_count)  // once we do get that condition, we'll keep decrementing until we're not above limit
         {
             printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
@@ -495,7 +495,7 @@ void check_max_nodes  ()
         }
     }
     pthread_rwlock_unlock(&read_write_lock);
-    
+
 }
 
 void _print (struct trie_node *node) {
