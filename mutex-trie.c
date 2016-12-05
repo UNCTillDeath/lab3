@@ -23,10 +23,11 @@ static struct trie_node * root = NULL;
 static int node_count = 0;
 static int max_count = 100;  //Try to stay at no more than 100 nodes
 
-static pthread_mutex_t trie_lock;
+pthread_mutex_t trie_lock; // full trie_lock
+pthread_cond_t node_threshold_cv; // cv stands for condition variable
 
 struct trie_node * new_leaf (const char *string, size_t strlen, int32_t ip4_address) {
-    pthread_mutex_lock(&trie_lock);
+    
 
     struct trie_node *new_node = malloc(sizeof(struct trie_node));
     node_count++;
@@ -44,7 +45,7 @@ struct trie_node * new_leaf (const char *string, size_t strlen, int32_t ip4_addr
     new_node->ip4_address = ip4_address;
     new_node->children = NULL;
 
-    pthread_mutex_unlock(&trie_lock);
+
     return new_node;
 }
 
@@ -108,7 +109,8 @@ void init(int numthreads) {
     }
     else
     {
-        trie_lock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_init(&trie_lock, NULL);
+        pthread_cond_init(&node_threshold_cv, NULL);
         pthread_mutex_lock(&trie_lock);
         root = NULL;
         pthread_mutex_unlock(&trie_lock);
@@ -337,12 +339,18 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
     /* Edge case: root is null */
     if (root == NULL) {
         root = new_leaf (string, strlen, ip4_address);
+
         pthread_mutex_unlock(&trie_lock);
         return 1;
     }
 
     int rv = _insert (string, strlen, ip4_address, root, NULL, NULL);
     assert_invariants();
+
+    if(node_count > max_count) // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
+    {
+        pthread_cond_signal(&node_threshold_cv);
+    }
     pthread_mutex_unlock(&trie_lock);
     return rv;
 }
@@ -445,7 +453,7 @@ _delete (struct trie_node *node, const char *string,
 
 int delete  (const char *string, size_t strlen) {
     // Skip strings of length 0
-    pthread_mutex_lock(&trie_lock);
+    pthread_mutex_unlock(&trie_lock);
     if (strlen == 0)
     {
         pthread_mutex_unlock(&trie_lock);
@@ -470,15 +478,21 @@ int delete  (const char *string, size_t strlen) {
 
 /* Check the total node count; see if we have exceeded a the max.
  */
-void check_max_nodes  () {
+void check_max_nodes  () 
+{
     pthread_mutex_unlock(&trie_lock);
-    while (node_count > max_count) {
-        printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
-        pthread_mutex_unlock(&trie_lock);
-        break;
-        //drop_one_node();
+    while(node_count < max_count)
+    {
+        pthread_cond_wait(&node_threshold_cv, &trie_lock);
+        while (node_count > max_count)  // once we do get that condition, we'll keep decrementing until we're not above limit
+        {
+            printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
+            break;
+            //drop_one_node();
+        }
     }
     pthread_mutex_unlock(&trie_lock);
+    
 }
 
 void _print (struct trie_node *node) {
