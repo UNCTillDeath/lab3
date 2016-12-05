@@ -414,13 +414,10 @@ _delete (struct trie_node *node, const char *string,
                     free(found);
                     node_count--;
                 }
-                printf("Node found: %s\n", string);
                 return node; /* Recursively delete needless interior nodes */
             }
-            printf("Node not found\n");
             return NULL;
         } else {
-            printf("IDK what happened");
             // Quit early
             return NULL;
         }
@@ -447,7 +444,12 @@ int delete  (const char *string, size_t strlen) {
 }
 
 char* combineKey(char* prefix, char* suffix){
-  strncat(prefix, suffix, MAX_KEY - strlen(suffix)); // append old stuff
+  if(suffix == NULL) printf("NULL VALUE FOR SUFFIX");
+  printf("Length of Suffix: %zd", strlen(suffix));
+  if(strlen(suffix) == 0){
+    return prefix;
+  }
+  strncat(prefix, suffix, strlen(prefix)  + strlen(suffix)); // append old stuff
   return prefix;
 }
 
@@ -460,19 +462,21 @@ int drop_one_node  () {
 
 
 	printf("we in here\n\n\n\n\n\n\n\n\n\n\n\n");
-	char key_to_delete[MAX_KEY+1]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
-	//key_to_delete[0] = '\0';
+	char key_to_delete[MAX_KEY+2]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+  key_to_delete[0] = '\0';
+  key_to_delete[MAX_KEY+1] = '\0';
 
-    struct trie_node *current = root->children;
-    //assert(root->children);
+    struct trie_node *current = root;
 
     if(!(current->children)) // current doesn't have children
     {
+      printf("Current Key: %s\n", current->key);
       printf("Found key on first level\n");
       strncpy(key_to_delete, current->key, MAX_KEY);
     }else{
       while(current != NULL){
           if(!(current->children)){
+              printf("No Children, Deleting\n");
               strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
               printf("Key to delete %s\n", key_to_delete);
               break;
@@ -483,11 +487,13 @@ int drop_one_node  () {
               printf("Key to delete %s\n", key_to_delete);
               current = current->children;
           }else{
-              printf("Going to next node\n");
+              printf("Going to next node with key: %s\n", current->next->key);
               current = current->next;
           }
         }
       }
+
+
       printf("Key: %s\n", key_to_delete);
       if(delete(key_to_delete, strlen(key_to_delete))){
         printf("Delete Successful\n");
@@ -551,14 +557,13 @@ int drop_one_node  () {
       return 1;
     }
 */
-    return 0;
+
 }
 
 /* Check the total node count; see if we have exceeded a the max.
  */
 void check_max_nodes  () {
     while (node_count > max_count) {
-
     	printf("Current count is: %d\n", node_count);
     	sleep(3);
         //printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
