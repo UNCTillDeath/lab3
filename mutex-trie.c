@@ -453,7 +453,7 @@ _delete (struct trie_node *node, const char *string,
 
 int delete  (const char *string, size_t strlen) {
     // Skip strings of length 0
-    pthread_mutex_unlock(&trie_lock);
+    pthread_mutex_lock(&trie_lock);
     if (strlen == 0)
     {
         pthread_mutex_unlock(&trie_lock);
@@ -480,7 +480,7 @@ int delete  (const char *string, size_t strlen) {
  */
 void check_max_nodes  () 
 {
-    pthread_mutex_unlock(&trie_lock);
+    pthread_mutex_lock(&trie_lock);
     while(node_count < max_count)
     {
         pthread_cond_wait(&node_threshold_cv, &trie_lock);
