@@ -429,7 +429,7 @@ int delete  (const char *string, size_t strlen) {
     if (strlen == 0)
         return 0;
 
-      if(search(string, strlen, 0)) printf("node found via search \n\n\n\n\n\n\n\n\n\n");
+      if(search(string, strlen, 0)) printf("Node found via search \n");
       else printf("Search yeilded no results \n");
     assert(strlen <= MAX_KEY);
     printf("current count before deletion: %d, deleting: %s\n", node_count, string);
@@ -444,8 +444,6 @@ int delete  (const char *string, size_t strlen) {
 }
 
 char* combineKey(char* prefix, char* suffix){
-  if(suffix == NULL) printf("NULL VALUE FOR SUFFIX");
-  printf("Length of Suffix: %zd", strlen(suffix));
   if(strlen(suffix) == 0){
     return prefix;
   }
@@ -459,9 +457,7 @@ char* combineKey(char* prefix, char* suffix){
  * I am looping until the last child, then, if the last child has a next, I loop until the last next.
  */
 int drop_one_node  () {
-
-
-	printf("we in here\n\n\n\n\n\n\n\n\n\n\n\n");
+	printf("Dropping Node\n");
 	char key_to_delete[MAX_KEY+2]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
   key_to_delete[0] = '\0';
   key_to_delete[MAX_KEY+1] = '\0';
@@ -478,13 +474,12 @@ int drop_one_node  () {
           if(!(current->children)){
               printf("No Children, Deleting\n");
               strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
-              printf("Key to delete %s\n", key_to_delete);
               break;
           }else if(current->next == NULL){
-              printf("Prefix: %s \n Suffix: %s\n", current->key, key_to_delete);
+              printf("Prefix: %s \nSuffix: %s\n", current->key, key_to_delete);
               printf("Combining keys\n");
               strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
-              printf("Key to delete %s\n", key_to_delete);
+              printf("Current Key: %s\n", key_to_delete);
               current = current->children;
           }else{
               printf("Going to next node with key: %s\n", current->next->key);
@@ -492,12 +487,10 @@ int drop_one_node  () {
           }
         }
       }
-
-
       printf("Key: %s\n", key_to_delete);
+
       if(delete(key_to_delete, strlen(key_to_delete))){
         printf("Delete Successful\n");
-
         return 0;
     } else return 1;
 /*
