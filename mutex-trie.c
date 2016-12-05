@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h>
 #include "trie.h"
 
 
@@ -334,6 +335,8 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
     pthread_mutex_lock(&trie_lock);
     printf("Insert: Lock Acquired\n");
 
+      printf("Inserting %s with length %zd", string, strlen);
+
     assert(strlen <= MAX_KEY);
 
     // Skip strings of length 0
@@ -349,6 +352,12 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
     /* Edge case: root is null */
     if (root == NULL) {
         root = new_leaf (string, strlen, ip4_address);
+        if(node_count > max_count) // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
+        {
+            printf("Too many nodes; Signaling\n");
+            pthread_cond_signal(&node_threshold_cv);
+        }
+
         printf("Insert: Releasing Lock");
         pthread_mutex_unlock(&trie_lock);
         printf("Insert: Lock Released");
@@ -383,7 +392,7 @@ _delete (struct trie_node *node, const char *string,
     // First things first, check if we are NULL
     if (node == NULL) return NULL;
 
-    assert(node->strlen < MAX_KEY);
+    assert(node->strlen <= MAX_KEY);
 
     // See if this key is a substring of the string passed in
     cmp = compare_keys_substring (node->key, node->strlen, string, strlen, &keylen);
@@ -484,6 +493,10 @@ int delete  (const char *string, size_t strlen) {
     assert(strlen <= MAX_KEY);
 
     int rv = (NULL != _delete(root, string, strlen));
+    if(rv){
+      printf("Delete successful\n");
+
+    }
     assert_invariants();
 
     printf("Delete: Releasing Lock\n");
@@ -492,11 +505,79 @@ int delete  (const char *string, size_t strlen) {
     return rv;
 }
 
+char* combineKey(char* prefix, char* suffix){
+  char* temp_pre = strdup(prefix);
+  char* temp_suf = strdup(suffix);
+  printf("Prefix: %s \nSuffix: %s\n", prefix, suffix);
+  if(strlen(suffix) == 0){
+    return prefix;
+  }
+  strncat(temp_pre, temp_suf, strlen(prefix)  + strlen(suffix)); // append old stuff
+  
+  return temp_pre;
+}
+
 
 /* Find one node to remove from the tree.
  * Use any policy you like to select the node.
  */
+int drop_one_node(){
+  printf("Dropping Node\n");
+  char* key_to_delete = malloc(MAX_KEY+2); // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+  key_to_delete[0] = '\0';
 
+  key_to_delete[MAX_KEY+1]= '\0';
+
+
+    struct trie_node *current = root;
+
+    if(!(current->children)) // current doesn't have children
+    {
+      printf("Current Key: %s\n", current->key);
+      printf("Found key on first level\n");
+      strncpy(key_to_delete, current->key, MAX_KEY);
+    }else{
+      while(current != NULL){
+        printf("KEY: %s\n", current->key);
+          if(!(current->children)){
+              printf("No Children, Deleting this Key: %s\n", current->key);
+              printf("Searching for %s\n", current->key);
+              if(_search(root, current->key, strlen(current->key))){
+                printf("Node Found: %s\n", current->key);
+                //sleep(1);
+              }
+              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
+              break;
+          }else if(current->next == NULL){
+              printf("Prefix: %s\nSuffix: %s\n", current->key, key_to_delete);
+              printf("Combining keys\n");
+              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
+              printf("Current Key: %s\n", key_to_delete);
+              current = current->children;
+          }else{
+              printf("Going to next node with key: %s\n", current->next->key);
+              current = current->next;
+          }
+        }
+      }
+      printf("Searching for %s\n", key_to_delete);
+      if(_search(root, key_to_delete, strlen(key_to_delete))){ printf("Node Found: %s\n", key_to_delete);
+        //sleep(1);
+      }
+      else{ printf("Node Not Found\n");
+
+
+      return 1;
+    }
+      printf("Key: %s with Length: %zd", key_to_delete, strlen(key_to_delete));
+
+      if(_delete(root, key_to_delete, strlen(key_to_delete))){
+        printf("Delete Successful\n");
+        return 0;
+    } else return 1;
+
+
+}
 
 /* Check the total node count; see if we have exceeded a the max.
  */
@@ -505,18 +586,22 @@ void check_max_nodes  ()
    printf("Checking Max Nodes\n");
    pthread_mutex_lock(&trie_lock);
    printf("Lock Acquired\n");
-    while(node_count > max_count)
-    {
-        printf("Waiting\n");
-        pthread_cond_wait(&node_threshold_cv, &trie_lock);
-        printf("Condition Met, Executing\n");
         while (node_count > max_count)  // once we do get that condition, we'll keep decrementing until we're not above limit
         {
-            printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
-            break;
-            //drop_one_node();
+          printf("Waiting\n");
+          pthread_cond_wait(&node_threshold_cv, &trie_lock);
+          printf("Condition Met, Executing\n");
+          printf("Current count is: %d\n", node_count);
+            //printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
+            //break;
+            while(node_count > max_count){
+            if(drop_one_node()){
+              printf("drop_one_node failed");
+              break;
+            }
+          }
         }
-    }
+
     pthread_mutex_unlock(&trie_lock);
 
 }

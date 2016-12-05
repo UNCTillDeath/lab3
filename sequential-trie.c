@@ -442,13 +442,16 @@ int delete  (const char *string, size_t strlen) {
     }
     return rv;
 }
-
 char* combineKey(char* prefix, char* suffix){
+  char* temp_pre = strdup(prefix);
+  char* temp_suf = strdup(suffix);
+  printf("Prefix: %s \nSuffix: %s\n", prefix, suffix);
   if(strlen(suffix) == 0){
-    return prefix;
+    return temp_pre;
   }
-  strncat(prefix, suffix, strlen(prefix)  + strlen(suffix)); // append old stuff
-  return prefix;
+  strncat(temp_pre, temp_suf, strlen(prefix)  + strlen(suffix)); // append old stuff
+	printf("New KEY: %s\n", temp_pre);
+  return temp_pre;
 }
 
 
@@ -458,9 +461,8 @@ char* combineKey(char* prefix, char* suffix){
  */
 int drop_one_node  () {
 	printf("Dropping Node\n");
-	char key_to_delete[MAX_KEY+2]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
-  key_to_delete[0] = '\0';
-  key_to_delete[MAX_KEY+1] = '\0';
+	char key_to_delete[MAX_KEY+1]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+	key_to_delete[0] = '\0';
 
     struct trie_node *current = root;
 
@@ -471,85 +473,33 @@ int drop_one_node  () {
       strncpy(key_to_delete, current->key, MAX_KEY);
     }else{
       while(current != NULL){
+				char* temp_key = strdup(current->key);
+				printf("CURRENT KEY: %s\n", temp_key);
           if(!(current->children)){
               printf("No Children, Deleting\n");
-              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
+              strncpy(key_to_delete, combineKey(temp_key, key_to_delete), MAX_KEY);
+							if(search(key_to_delete, strlen(key_to_delete), 0)) printf("FOUND KEY via search \n");
               break;
           }else if(current->next == NULL){
-              printf("Prefix: %s \nSuffix: %s\n", current->key, key_to_delete);
-              printf("Combining keys\n");
-              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
+              printf("Reached end of next, key is: %s\n", current->key);
+              strncpy(key_to_delete, combineKey(temp_key, key_to_delete), MAX_KEY);
               printf("Current Key: %s\n", key_to_delete);
               current = current->children;
           }else{
-              printf("Going to next node with key: %s\n", current->next->key);
+              printf("Looping through next list at key: %s\n", current->key);
               current = current->next;
           }
         }
       }
-      printf("Key: %s\n", key_to_delete);
+      printf("Key: %sl with length %zd\n", key_to_delete, strlen(key_to_delete));
+			if(search("wkwyqpoozzvbrznkbtmyhmzyuaczlxhmyoonkhjavzbwkrzzz", strlen("wkwyqpoozzvbrznkbtmyhmzyuaczlxhmyoonkhjavzbwkrzz"), 0)){
+					printf("FOUND MANUAL STRING via search \n");
+			}
 
       if(delete(key_to_delete, strlen(key_to_delete))){
         printf("Delete Successful\n");
         return 0;
     } else return 1;
-/*
-    if (!root || !(root->children))
-    {
-    	return 0;
-    }
-
-    struct trie_node *current = root->children;
-    assert(root->children);
-
-    if(!(current->children)) // current doesn't have children
-    {
-    	strncpy(key_to_delete, current->key, MAX_KEY);
-    }
-    else
-    {
-	    for( ; current->children; current = current->children)
-	    {
-        if(current->children == NULL){
-          break;
-        }
-	    	char *temp_prefix = strndup(current->key, MAX_KEY);
-	    	char *temp_suffix = strndup(key_to_delete, MAX_KEY); // old key_to_delete
-
-	    	strncpy(key_to_delete, temp_prefix, (MAX_KEY - strlen(key_to_delete))); // make prefix take over key_to_delete // strlen will write over till MAX_KEY - len(key) null bytes
-	    	strncat(key_to_delete, temp_suffix, MAX_KEY - strlen(key_to_delete)); // append old stuff
-
-	    	free(temp_prefix);
-	    	free(temp_suffix);
-        printf("Key to delete %s\n", key_to_delete);
-	    }
-	}
-
-
-	for (; current->next; current = current->next)  // loop until current is the tail
-	{
-
-	}
-
-	char *temp_prefix = strndup(current->key, MAX_KEY);
-	char *temp_suffix = strndup(key_to_delete, MAX_KEY); // old key_to_delete
-
-	strncpy(key_to_delete, temp_prefix, (MAX_KEY - strlen(key_to_delete))); // make prefix take over key_to_delete // strlen will write over till MAX_KEY - len(key) null bytes
-	strncat(key_to_delete, temp_suffix, MAX_KEY - strlen(key_to_delete)); // append old stuff
-
-	free(temp_prefix);
-	free(temp_suffix);
-
-
-  printf("Key to delete %s\n", key_to_delete);
-
-
-	printf("about to delete: %s\n", key_to_delete);
-    if(!delete(key_to_delete, strlen(key_to_delete))) {
-      printf("DELETE DIDNT WORK FAM \n");
-      return 1;
-    }
-*/
 
 }
 
@@ -558,12 +508,14 @@ int drop_one_node  () {
 void check_max_nodes  () {
     while (node_count > max_count) {
     	printf("Current count is: %d\n", node_count);
-    	sleep(3);
+
         //printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
         //break;
         if(drop_one_node()){
           printf("drop_one_node failed");
-          break;
+					sleep(10);
+
+
         }
 
     }
