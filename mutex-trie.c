@@ -445,7 +445,7 @@ _delete (struct trie_node *node, const char *string,
 
 int delete  (const char *string, size_t strlen) {
     // Skip strings of length 0
-    pthread_mutex_unlock(&trie_lock);
+    pthread_mutex_lock(&trie_lock);
     if (strlen == 0)
     {
         pthread_mutex_unlock(&trie_lock);
