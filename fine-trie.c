@@ -18,6 +18,7 @@ struct trie_node {
 	int32_t			ip4_address;    /* 4 octets */
 	struct trie_node *	children;       /* Sorted list of children */
 	char			key[64];        /* Up to 64 chars */
+	pthread_mutex_t		node_lock;
 };
 
 static struct trie_node *root = NULL;

@@ -192,8 +192,8 @@ int search(const char *string, size_t strlen, int32_t *ip4_address)
 
 	found = _search(root, string, strlen);
 
-	if (found && ip4_address)
-		*ip4_address = found->ip4_address;
+	if (found && ip4_address) *ip4_address = found->ip4_address;
+
 	printf("Search: Releasing Lock");
 	pthread_mutex_unlock(&trie_lock);
 	printf("Search: Lock Released");
@@ -489,6 +489,10 @@ int delete(const char *string, size_t strlen)
 	int rv = (NULL != _delete(root, string, strlen));
 	if (rv)
 		printf("Delete successful\n");
+	if (node_count > max_count) {         // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
+		printf("Too many nodes; Signaling\n\n\n\n\n\n");
+		pthread_cond_signal(&node_threshold_cv);
+	}
 
 	assert_invariants();
 
