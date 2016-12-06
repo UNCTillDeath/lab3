@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h>
 #include "trie.h"
 
 
@@ -24,7 +25,7 @@ static int node_count = 0;
 static int max_count = 100;  //Try to stay at no more than 100 nodes
 static int MAX_KEY = 64;
 
-pthread_cond_t node_threshold_cv; // cv stands for condition variable
+
 
 pthread_rwlock_t read_write_lock;
 
@@ -112,7 +113,7 @@ void init(int numthreads) {
     else
     {
         pthread_rwlock_init(&read_write_lock, NULL);
-        pthread_cond_init(&node_threshold_cv, NULL);
+
 
         pthread_rwlock_wrlock(&read_write_lock);
         root = NULL;
@@ -327,7 +328,7 @@ int _insert (const char *string, size_t strlen, int32_t ip4_address,
 void assert_invariants();
 
 int insert (const char *string, size_t strlen, int32_t ip4_address) {
-    pthread_rwlock_rdlock(&read_write_lock);
+    pthread_rwlock_wrlock(&read_write_lock);
 
     assert(strlen <= MAX_KEY);
 
@@ -350,10 +351,7 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
     int rv = _insert (string, strlen, ip4_address, root, NULL, NULL);
     assert_invariants();
 
-    if(node_count > max_count) // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
-    {
-        pthread_cond_signal(&node_threshold_cv);
-    }
+
     pthread_rwlock_unlock(&read_write_lock);
     return rv;
 }
@@ -477,27 +475,92 @@ int delete  (const char *string, size_t strlen) {
 /* Find one node to remove from the tree.
  * Use any policy you like to select the node.
  */
+ char* combineKey(char* prefix, char* suffix){
 
+   	char* temp_pre = strdup(prefix);
+   	char* temp_suf = strdup(suffix);
+
+     printf("Prefix: %s \nSuffix: %s\n", prefix, suffix);
+     if(strlen(suffix) == 0){
+       return temp_pre;
+     }
+     strcat(temp_pre, temp_suf); // append old stuff
+   	printf("New KEY: %s\n", temp_pre);
+
+     return temp_pre;
+ }
+
+
+ /* Find one node to remove from the tree.
+  * Use any policy you like to select the node.
+  */
+ int drop_one_node(){
+   printf("Dropping Node\n");
+   char key_to_delete[MAX_KEY+1]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+   key_to_delete[0] = '\0';
+
+    struct trie_node *current = root;
+    char* temp_key;
+
+     if(!(current->children)) // current doesn't have children
+     {
+       temp_key = strdup(current->key);
+       //printf("Current Key: %s at Node: %p \n", current->key, &current);
+       printf("Found key on first level\n");
+       strcpy(key_to_delete, temp_key);
+     }else{
+       while(current != NULL){
+         temp_key = strndup(current->key, current->strlen);
+         //temp_key[current->strlen] = '\0';
+         //printf("CURRENT KEY: %s at Node %p %p with length %d\n", current->key, &current, current,current->strlen);
+           if(!(current->children)){
+               printf("No Children, Deleting\n");
+               strncpy(key_to_delete, combineKey(temp_key, key_to_delete), MAX_KEY);
+               break;
+           }else if(current->next == NULL){
+               //printf("Reached end of next, key is: %s\n", current->key);
+               strcpy(key_to_delete, combineKey(temp_key, key_to_delete));
+
+               current = current->children;
+           }else if(current->next != NULL && current->children != NULL){
+
+               current = current->next;
+           }
+
+         }
+       }
+       //printf("Key: %sl with length %zd\n", key_to_delete, strlen(key_to_delete));
+
+
+       if(_delete(root, key_to_delete, strlen(key_to_delete))){
+         printf("Delete Successful\n");
+
+
+         return 0;
+     } else return 1;
+
+
+ }
 
 /* Check the total node count; see if we have exceeded a the max.
  */
 void check_max_nodes  ()
 {
-    pthread_rwlock_wrlock(&read_write_lock);
-    while(node_count < max_count)
-    {
-        //pthread_cond_wait(&node_threshold_cv, &read_write_lock);
-        while (node_count > max_count)  // once we do get that condition, we'll keep decrementing until we're not above limit
-        {
-            printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
-            break;
-            //drop_one_node();
-        }
-    }
-    pthread_rwlock_unlock(&read_write_lock);
+  pthread_rwlock_wrlock(&read_write_lock);
+    while(node_count > max_count){
+      if(drop_one_node()){
+        printf("drop_one_node failed");
+        sleep(3);
+        break;
+            }
+    printf("Current count is: %d\n", node_count);
+          }
+          pthread_rwlock_unlock(&read_write_lock);
+          //sleep(1);
+
+
 
 }
-
 void _print (struct trie_node *node) {
     printf ("Node at %p.  Key %.*s (%d), IP %d.  Next %p, Children %p\n",
             node, node->strlen, node->key, node->strlen, node->ip4_address, node->next, node->children);
