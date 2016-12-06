@@ -513,7 +513,7 @@ char* combineKey(char* prefix, char* suffix){
     return prefix;
   }
   strncat(temp_pre, temp_suf, strlen(prefix)  + strlen(suffix)); // append old stuff
-  
+
   return temp_pre;
 }
 
@@ -523,10 +523,9 @@ char* combineKey(char* prefix, char* suffix){
  */
 int drop_one_node(){
   printf("Dropping Node\n");
-  char* key_to_delete = malloc(MAX_KEY+2); // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+  char* key_to_delete = malloc(MAX_KEY+1); // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
   key_to_delete[0] = '\0';
 
-  key_to_delete[MAX_KEY+1]= '\0';
 
 
     struct trie_node *current = root;
@@ -562,7 +561,7 @@ int drop_one_node(){
       }
       printf("Searching for %s\n", key_to_delete);
       if(_search(root, key_to_delete, strlen(key_to_delete))){ printf("Node Found: %s\n", key_to_delete);
-        //sleep(1);
+        sleep(1);
       }
       else{ printf("Node Not Found\n");
 
@@ -597,6 +596,7 @@ void check_max_nodes  ()
             while(node_count > max_count){
             if(drop_one_node()){
               printf("drop_one_node failed");
+              sleep(3);
               break;
             }
           }

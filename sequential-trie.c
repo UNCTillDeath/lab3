@@ -325,7 +325,6 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
 
     int rv = _insert (string, strlen, ip4_address, root, NULL, NULL);
     assert_invariants();
-    printf("after insertion count: %d\n", node_count);
     return rv;
 }
 
@@ -429,27 +428,23 @@ int delete  (const char *string, size_t strlen) {
     if (strlen == 0)
         return 0;
 
-      if(search(string, strlen, 0)) printf("Node found via search \n");
-      else printf("Search yeilded no results \n");
     assert(strlen <= MAX_KEY);
-    printf("current count before deletion: %d, deleting: %s\n", node_count, string);
+
     int rv = (NULL != _delete(root, string, strlen));
     assert_invariants();
-    printf("current count after deletion: %d\n", node_count);
-    if(!rv)
-    {
-    	printf("Failure to delete\n");
-    }
     return rv;
 }
 char* combineKey(char* prefix, char* suffix){
-  char* temp_pre = strdup(prefix);
-  char* temp_suf = strdup(suffix);
+
+	char* temp_pre = strdup(prefix);
+	char* temp_suf = strdup(suffix);
+
+
   printf("Prefix: %s \nSuffix: %s\n", prefix, suffix);
   if(strlen(suffix) == 0){
     return temp_pre;
   }
-  strncat(temp_pre, temp_suf, strlen(prefix)  + strlen(suffix)); // append old stuff
+  strcat(temp_pre, temp_suf); // append old stuff
 	printf("New KEY: %s\n", temp_pre);
   return temp_pre;
 }
@@ -461,38 +456,43 @@ char* combineKey(char* prefix, char* suffix){
  */
 int drop_one_node  () {
 	printf("Dropping Node\n");
-	char key_to_delete[MAX_KEY+1]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+	char* key_to_delete = malloc(MAX_KEY+1); // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
 	key_to_delete[0] = '\0';
+	
+
+
 
     struct trie_node *current = root;
 
     if(!(current->children)) // current doesn't have children
     {
-      printf("Current Key: %s\n", current->key);
+			char* temp_key = strdup(current->key);
+      //printf("Current Key: %s at Node: %p \n", current->key, &current);
       printf("Found key on first level\n");
-      strncpy(key_to_delete, current->key, MAX_KEY);
+      strcpy(key_to_delete, temp_key);
     }else{
       while(current != NULL){
 				char* temp_key = strdup(current->key);
-				printf("CURRENT KEY: %s\n", temp_key);
+				temp_key[current->strlen] = '\0';
+				//printf("CURRENT KEY: %s at Node %p %p with length %d\n", current->key, &current, current,current->strlen);
           if(!(current->children)){
               printf("No Children, Deleting\n");
-              strncpy(key_to_delete, combineKey(temp_key, key_to_delete), MAX_KEY);
-							if(search(key_to_delete, strlen(key_to_delete), 0)) printf("FOUND KEY via search \n");
+              strcpy(key_to_delete, combineKey(temp_key, key_to_delete));
+							if(search(key_to_delete, MAX_KEY, 0)) printf("FOUND KEY via search \n");
               break;
           }else if(current->next == NULL){
               printf("Reached end of next, key is: %s\n", current->key);
-              strncpy(key_to_delete, combineKey(temp_key, key_to_delete), MAX_KEY);
-              printf("Current Key: %s\n", key_to_delete);
+              strcpy(key_to_delete, combineKey(temp_key, key_to_delete));
+              //printf("Current Key: %s\n", key_to_delete);
               current = current->children;
-          }else{
-              printf("Looping through next list at key: %s\n", current->key);
+          }else if(current->next != NULL && current->children != NULL){
+              //printf("Looping through next list at key: %s\n", current->key);
               current = current->next;
           }
         }
       }
-      printf("Key: %sl with length %zd\n", key_to_delete, strlen(key_to_delete));
-			if(search("wkwyqpoozzvbrznkbtmyhmzyuaczlxhmyoonkhjavzbwkrzzz", strlen("wkwyqpoozzvbrznkbtmyhmzyuaczlxhmyoonkhjavzbwkrzz"), 0)){
+      //printf("Key: %sl with length %zd\n", key_to_delete, strlen(key_to_delete));
+			if(search("wkwyqpoozzvbrznkbtmyhmzyuaczlxhmyoonkhjavzbwkrzz", strlen("wkwyqpoozzvbrznkbtmyhmzyuaczlxhmyoonkhjavzbwkrzz"), 0)){
 					printf("FOUND MANUAL STRING via search \n");
 			}
 
@@ -514,9 +514,9 @@ void check_max_nodes  () {
         if(drop_one_node()){
           printf("drop_one_node failed");
 					sleep(10);
-
-
+					break;
         }
+
 
     }
 }

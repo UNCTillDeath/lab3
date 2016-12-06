@@ -4,6 +4,13 @@
 #include <stdint.h>
 #include <assert.h>
 
+#define DEBUG 1
+#ifdef DEBUG
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...)
+#endif
+
 /* A simple (reverse) trie interface */
 
 /* Optional init routine.  May not be required. */
@@ -42,4 +49,4 @@ void print ();
 extern int allow_squatting;
 
 
-#endif /* __TRIE_H__ */ 
+#endif /* __TRIE_H__ */
