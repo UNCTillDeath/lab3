@@ -20,11 +20,11 @@ struct trie_node {
 	char			key[64];        /* Up to 64 chars */
 	pthread_mutex_t		node_lock;
 };
-
 static struct trie_node *root = NULL;
 static int node_count = 0;
 static int max_count = 100;  //Try to stay at no more than 100 nodes
 static int MAX_KEY = 64;
+struct trie_node *keyring;
 
 pthread_mutex_t trie_lock;              // full trie_lock
 pthread_cond_t node_threshold_cv;       // cv stands for condition variable
@@ -176,10 +176,8 @@ _search(struct trie_node *node, const char *string, size_t strlen)
 
 int search(const char *string, size_t strlen, int32_t *ip4_address)
 {
-	printf("Search: Acquiring Lock\n");
-	pthread_mutex_lock(&trie_lock);
-	printf("Search: Lock Acquired\n");
 	struct trie_node *found;
+
 
 	assert(strlen <= MAX_KEY);
 
@@ -607,7 +605,6 @@ void print()
 		_print(root);
 	pthread_mutex_unlock(&trie_lock);
 }
-
 
 
 

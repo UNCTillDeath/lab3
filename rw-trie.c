@@ -581,17 +581,21 @@ void check_max_nodes()
 
 
 	pthread_mutex_lock(&trie_lock);
+	pthread_rwlock_wrlock(&read_write_lock);
+
+	if (node_count < max_count) pthread_rwlock_unlock(&read_write_lock);
+
+
 
 	printf("Delete Thread: Lock Acquired\n");
 	printf("DT: Waiting\n");
 	pthread_cond_wait(&node_threshold_cv, &trie_lock);
-	pthread_rwlock_wrlock(&read_write_lock);
 
-	printf("Condition Met, Executing\n");
 
 
 
 	while (node_count > max_count) {
+		printf("Condition Met, Executing\n");
 		printf("Current count is: %d\n", node_count);
 		if (drop_one_node()) {
 			printf("drop_one_node failed");
@@ -599,10 +603,11 @@ void check_max_nodes()
 			break;
 		}
 		printf("Current count is: %d\n", node_count);
+		pthread_rwlock_unlock(&read_write_lock);
 	}
 	printf("Delete Thread Releasing Lock\n");
 	pthread_mutex_unlock(&trie_lock);
-	pthread_rwlock_unlock(&read_write_lock);
+
 	printf("Delete Thread: Lock Released\n");
 	//sleep(1);
 }

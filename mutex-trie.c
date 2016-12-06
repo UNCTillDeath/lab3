@@ -24,6 +24,7 @@ static struct trie_node *root = NULL;
 static int node_count = 0;
 static int max_count = 100;  //Try to stay at no more than 100 nodes
 static int MAX_KEY = 64;
+char *print_array[100][100];
 
 pthread_mutex_t trie_lock;              // full trie_lock
 pthread_cond_t node_threshold_cv;       // cv stands for condition variable
@@ -608,12 +609,11 @@ void print()
 {
 	pthread_mutex_lock(&trie_lock);
 	printf("Root is at %p\n", root);
-	/* Do a simple depth-first search */
+	//Do a simple depth - first search
 	if (root)
 		_print(root);
 	pthread_mutex_unlock(&trie_lock);
 }
-
 
 
 
