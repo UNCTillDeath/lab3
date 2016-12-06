@@ -20,7 +20,7 @@
 
 static int MAX_KEY = 64;
 int separate_delete_thread = 0;
-int simulation_length = 30; // default to 30 seconds
+int simulation_length = 10; // default to 30 seconds
 volatile int finished = 0;
 
 
@@ -410,6 +410,7 @@ int main(int argc, char ** argv) {
     // Wait for all clients to exit.  If we are allowing blocking,
     // cancel the threads, since they may hang forever
     if (separate_delete_thread) {
+        printf("Shutting Down Delete Thread\n\n\n\n\n\n\n\n");
         shutdown_delete_thread();
     }
 
@@ -423,6 +424,6 @@ int main(int argc, char ** argv) {
     /* Print the final tree for fun */
     print();
 #endif
-
+  //printf("FINISHED\n");
     return 0;
 }

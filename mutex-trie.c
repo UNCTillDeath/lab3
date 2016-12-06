@@ -122,7 +122,8 @@ void init(int numthreads) {
 }
 
 void shutdown_delete_thread() {
-    // Don't need to do anything in the sequential case.
+    printf("Shutting Down Delete Thread\n");
+    pthread_cond_signal(&node_threshold_cv);
     return;
 }
 
@@ -354,7 +355,7 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
         root = new_leaf (string, strlen, ip4_address);
         if(node_count > max_count) // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
         {
-            printf("Too many nodes; Signaling\n");
+            printf("Too many nodes; Signaling\n\n");
             pthread_cond_signal(&node_threshold_cv);
         }
 
@@ -369,7 +370,7 @@ int insert (const char *string, size_t strlen, int32_t ip4_address) {
 
     if(node_count > max_count) // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
     {
-        printf("Too many nodes; Signaling\n");
+        printf("Too many nodes; Signaling\n\n\n\n\n\n");
         pthread_cond_signal(&node_threshold_cv);
     }
     printf("Insert: Releasing Lock\n");
@@ -506,15 +507,18 @@ int delete  (const char *string, size_t strlen) {
 }
 
 char* combineKey(char* prefix, char* suffix){
-  char* temp_pre = strdup(prefix);
-  char* temp_suf = strdup(suffix);
-  printf("Prefix: %s \nSuffix: %s\n", prefix, suffix);
-  if(strlen(suffix) == 0){
-    return prefix;
-  }
-  strncat(temp_pre, temp_suf, strlen(prefix)  + strlen(suffix)); // append old stuff
 
-  return temp_pre;
+  	char* temp_pre = strdup(prefix);
+  	char* temp_suf = strdup(suffix);
+
+
+    printf("Prefix: %s \nSuffix: %s\n", prefix, suffix);
+    if(strlen(suffix) == 0){
+      return temp_pre;
+    }
+    strcat(temp_pre, temp_suf); // append old stuff
+  	printf("New KEY: %s\n", temp_pre);
+    return temp_pre;
 }
 
 
@@ -528,47 +532,37 @@ int drop_one_node(){
 
 
 
+
     struct trie_node *current = root;
 
     if(!(current->children)) // current doesn't have children
     {
-      printf("Current Key: %s\n", current->key);
+      char* temp_key = strdup(current->key);
+      //printf("Current Key: %s at Node: %p \n", current->key, &current);
       printf("Found key on first level\n");
-      strncpy(key_to_delete, current->key, MAX_KEY);
+      strcpy(key_to_delete, temp_key);
     }else{
       while(current != NULL){
-        printf("KEY: %s\n", current->key);
+        char* temp_key = strdup(current->key);
+        temp_key[current->strlen] = '\0';
+        //printf("CURRENT KEY: %s at Node %p %p with length %d\n", current->key, &current, current,current->strlen);
           if(!(current->children)){
-              printf("No Children, Deleting this Key: %s\n", current->key);
-              printf("Searching for %s\n", current->key);
-              if(_search(root, current->key, strlen(current->key))){
-                printf("Node Found: %s\n", current->key);
-                //sleep(1);
-              }
-              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
+              printf("No Children, Deleting\n");
+              strcpy(key_to_delete, combineKey(temp_key, key_to_delete));
               break;
           }else if(current->next == NULL){
-              printf("Prefix: %s\nSuffix: %s\n", current->key, key_to_delete);
-              printf("Combining keys\n");
-              strncpy(key_to_delete, combineKey(current->key, key_to_delete), MAX_KEY);
-              printf("Current Key: %s\n", key_to_delete);
+              printf("Reached end of next, key is: %s\n", current->key);
+              strcpy(key_to_delete, combineKey(temp_key, key_to_delete));
+
               current = current->children;
-          }else{
-              printf("Going to next node with key: %s\n", current->next->key);
+          }else if(current->next != NULL && current->children != NULL){
+
               current = current->next;
           }
         }
       }
-      printf("Searching for %s\n", key_to_delete);
-      if(_search(root, key_to_delete, strlen(key_to_delete))){ printf("Node Found: %s\n", key_to_delete);
-        sleep(1);
-      }
-      else{ printf("Node Not Found\n");
+      //printf("Key: %sl with length %zd\n", key_to_delete, strlen(key_to_delete));
 
-
-      return 1;
-    }
-      printf("Key: %s with Length: %zd", key_to_delete, strlen(key_to_delete));
 
       if(_delete(root, key_to_delete, strlen(key_to_delete))){
         printf("Delete Successful\n");
@@ -584,10 +578,9 @@ void check_max_nodes  ()
 {
    printf("Checking Max Nodes\n");
    pthread_mutex_lock(&trie_lock);
-   printf("Lock Acquired\n");
-        while (node_count > max_count)  // once we do get that condition, we'll keep decrementing until we're not above limit
-        {
-          printf("Waiting\n");
+   printf("Delete Thread: Lock Acquired\n");
+
+          printf("DT: Waiting\n");
           pthread_cond_wait(&node_threshold_cv, &trie_lock);
           printf("Condition Met, Executing\n");
           printf("Current count is: %d\n", node_count);
@@ -599,10 +592,14 @@ void check_max_nodes  ()
               sleep(3);
               break;
             }
+            printf("Current count is: %d\n", node_count);
           }
-        }
 
+          //sleep(1);
+
+    printf("Delete Thread Releasing Lock\n");
     pthread_mutex_unlock(&trie_lock);
+    printf("Delete Thread: Lock Released\n");
 
 }
 
