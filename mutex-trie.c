@@ -527,9 +527,6 @@ int drop_one_node()
 	char *key_to_delete = malloc(MAX_KEY + 1); // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
 	key_to_delete[0] = '\0';
 
-
-
-
 	struct trie_node *current = root;
 
 	if (!(current->children)) { // current doesn't have children

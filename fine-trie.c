@@ -116,9 +116,9 @@ void init(int numthreads)
 	} else {
 		pthread_mutex_init(&trie_lock, NULL);
 		pthread_cond_init(&node_threshold_cv, NULL);
-		pthread_mutex_lock(&trie_lock);
+		pthread_mutex_lock(&(trie_lock));
 		root = NULL;
-		pthread_mutex_unlock(&trie_lock);
+		pthread_mutex_unlock(&(trie_lock));
 	}
 }
 
@@ -140,9 +140,12 @@ _search(struct trie_node *node, const char *string, size_t strlen)
 {
 	int keylen, cmp;
 
+	print();
+	printf("Looking for %s with length %zd", string, strlen);
 	// First things first, check if we are NULL
 	if (node == NULL)
 		return NULL;
+	printf("Node has key: %s with length %d with address %p", node->key, node->strlen, node);
 	assert(node->strlen <= MAX_KEY);
 
 	// See if this key is a substring of the string passed in
@@ -212,7 +215,7 @@ int search(const char *string, size_t strlen, int32_t *ip4_address)
 
 
 	printf("Releasing root lock\n");
-	pthread_mutex_unlock(&(root->node_lock));
+	//pthread_mutex_unlock(&(root->node_lock));
 	printf("Released root lock\n");
 	return found != NULL;
 }
@@ -223,6 +226,7 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 	    struct trie_node *node, struct trie_node *parent, struct trie_node *left)
 {
 	int cmp, keylen;
+
 
 	// First things first, check if we are NULL
 	assert(node != NULL);
@@ -242,6 +246,7 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 			assert((!parent) || parent->children == node);
 
 			new_node = new_leaf(string, strlen, ip4_address);
+			pthread_mutex_lock(&(new_node->node_lock));
 			node->strlen -= keylen;
 			new_node->children = node;
 			new_node->next = node->next;
@@ -255,15 +260,19 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 				left->next = new_node;
 			else if ((!parent) || (!left))
 				root = new_node;
+			pthread_mutex_lock(&(new_node->node_lock));
 			return 1;
 		} else if (strlen > keylen) {
 			if (node->children == NULL) {
 				// Insert leaf here
 				struct trie_node *new_node = new_leaf(string, strlen - keylen, ip4_address);
+				pthread_mutex_lock(&(new_node->node_lock));
 				node->children = new_node;
+				pthread_mutex_unlock(&(new_node->node_lock));
 				return 1;
 			} else {
-				// Recur on children list, store "parent" (loosely defined)
+				pthread_mutex_lock(&(node->children->node_lock));
+				pthread_mutex_unlock(&(node->node_lock));
 				return _insert(string, strlen - keylen, ip4_address,
 					       node->children, node, NULL);
 			}
@@ -271,8 +280,10 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 			assert(strlen == keylen);
 			if (node->ip4_address == 0) {
 				node->ip4_address = ip4_address;
+				pthread_mutex_unlock(&(node->node_lock));
 				return 1;
 			} else {
+				pthread_mutex_unlock(&(node->node_lock));
 				return 0;
 			}
 		}
@@ -293,6 +304,7 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 			// Insert a common parent, recur
 			int offset = strlen - keylen2;
 			struct trie_node *new_node = new_leaf(&string[offset], keylen2, 0);
+			pthread_mutex_lock(&(new_node->node_lock));
 			assert((node->strlen - keylen2) > 0);
 			node->strlen -= keylen2;
 			new_node->children = node;
@@ -310,7 +322,6 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 			} else if ((!parent) && (!left)) {
 				root = new_node;
 			}
-
 			return _insert(string, offset, ip4_address,
 				       node, new_node, NULL);
 		} else {
@@ -318,6 +329,8 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 			if (cmp < 0) {
 				// No, recur right (the node's key is "less" than  the search key)
 				if (node->next) {
+					pthread_mutex_lock(&(node->next->node_lock));
+
 					return _insert(string, strlen, ip4_address, node->next, NULL, node);
 				} else {
 					// Insert here
@@ -328,6 +341,8 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 			} else {
 				// Insert here
 				struct trie_node *new_node = new_leaf(string, strlen, ip4_address);
+				pthread_mutex_lock(&(new_node->node_lock));
+
 				new_node->next = node;
 				if (node == root)
 					root = new_node;
@@ -335,8 +350,10 @@ int _insert(const char *string, size_t strlen, int32_t ip4_address,
 					parent->children = new_node;
 				else if (left && left->next == node)
 					left->next = new_node;
+				pthread_mutex_unlock(&(new_node->node_lock));
 			}
 		}
+
 		return 1;
 	}
 }
@@ -346,7 +363,8 @@ void assert_invariants();
 int insert(const char *string, size_t strlen, int32_t ip4_address)
 {
 	printf("Insert: Acquiring Lock\n");
-	pthread_mutex_lock(&trie_lock);
+	pthread_mutex_lock(&(trie_lock));
+
 	printf("Insert: Lock Acquired\n");
 
 	printf("Inserting %s with length %zd", string, strlen);
@@ -356,7 +374,8 @@ int insert(const char *string, size_t strlen, int32_t ip4_address)
 	// Skip strings of length 0
 	if (strlen == 0) {
 		printf("Insert: Releasing Lock");
-		pthread_mutex_unlock(&trie_lock);
+		pthread_mutex_unlock(&(trie_lock));
+
 		printf("Insert: Lock Released");
 		return 0;
 	}
@@ -371,12 +390,13 @@ int insert(const char *string, size_t strlen, int32_t ip4_address)
 		}
 
 		printf("Insert: Releasing Lock");
-		pthread_mutex_unlock(&trie_lock);
+		pthread_mutex_unlock(&(trie_lock));
 		printf("Insert: Lock Released");
 		return 1;
 	}
-
+	pthread_mutex_lock(&(root->node_lock));
 	int rv = _insert(string, strlen, ip4_address, root, NULL, NULL);
+	pthread_mutex_unlock(&(root->node_lock));
 	assert_invariants();
 
 	if (node_count > max_count) { // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
@@ -384,7 +404,8 @@ int insert(const char *string, size_t strlen, int32_t ip4_address)
 		pthread_cond_signal(&node_threshold_cv);
 	}
 	printf("Insert: Releasing Lock\n");
-	pthread_mutex_unlock(&trie_lock);
+	pthread_mutex_unlock(&(trie_lock));
+
 	printf("Insert: Lock Released\n");
 	return rv;
 }
@@ -413,6 +434,7 @@ _delete(struct trie_node *node, const char *string,
 
 		// If this key is longer than our search string, the key isn't here
 		if (node->strlen > keylen) {
+			pthread_mutex_lock(&(node->node_lock));
 			return NULL;
 		} else if (strlen > keylen) {
 			struct trie_node *found = _delete(node->children, string, strlen - keylen);
@@ -432,7 +454,7 @@ _delete(struct trie_node *node, const char *string,
 					free(node);
 					node_count--;
 				}
-
+				pthread_mutex_unlock(&(node->node_lock));
 				return node; /* Recursively delete needless interior nodes */
 			} else {
 				return NULL;
@@ -455,6 +477,7 @@ _delete(struct trie_node *node, const char *string,
 					                                      * segfault if used.
 					                                      */
 				}
+				pthread_mutex_unlock(&(node->node_lock));
 				return node;
 			} else {
 				/* Just an interior node with no value */
@@ -465,6 +488,8 @@ _delete(struct trie_node *node, const char *string,
 		cmp = compare_keys(node->key, node->strlen, string, strlen, &keylen);
 		if (cmp < 0) {
 			// No, look right (the node's key is "less" than  the search key)
+			if (node->next != NULL) pthread_mutex_lock(&(node->next->node_lock));
+			pthread_mutex_unlock(&(node->node_lock));
 			struct trie_node *found = _delete(node->next, string, strlen);
 			if (found) {
 				/* If the node doesn't have children, delete it.
@@ -478,6 +503,8 @@ _delete(struct trie_node *node, const char *string,
 
 				return node; /* Recursively delete needless interior nodes */
 			}
+
+
 			return NULL;
 		} else {
 			// Quit early
@@ -491,27 +518,30 @@ int delete(const char *string, size_t strlen)
 	// Skip strings of length 0
 
 	printf("Delete: Acquiring Lock\n");
-	pthread_mutex_lock(&trie_lock);
+
+	pthread_mutex_lock(&(trie_lock));
 	printf("Delete: Lock Acquired\n");
 
 	if (strlen == 0) {
 		printf("Delete: Releasing Lock\n");
-		pthread_mutex_unlock(&trie_lock);
+		pthread_mutex_unlock(&(trie_lock));
 		printf("Delete: Lock Released\n");
 		return 0;
 	}
 
 
 	assert(strlen <= MAX_KEY);
-
+	pthread_mutex_lock(&(root->node_lock));
 	int rv = (NULL != _delete(root, string, strlen));
+	if (root != NULL) pthread_mutex_unlock(&(root->node_lock));
 	if (rv)
 		printf("Delete successful\n");
 
 	assert_invariants();
 
 	printf("Delete: Releasing Lock\n");
-	pthread_mutex_unlock(&trie_lock);
+	pthread_mutex_unlock(&(trie_lock));
+
 	printf("Delete: Lock Released\n");
 	return rv;
 }
@@ -571,8 +601,12 @@ int drop_one_node()
 
 	if (_delete(root, key_to_delete, strlen(key_to_delete))) {
 		printf("Delete Successful\n");
+		free(key_to_delete);
 		return 0;
-	} else { return 1; }
+	} else {
+		free(key_to_delete);
+		return 1;
+	}
 }
 
 /* Check the total node count; see if we have exceeded a the max.
@@ -580,11 +614,11 @@ int drop_one_node()
 void check_max_nodes()
 {
 	printf("Checking Max Nodes\n");
-	pthread_mutex_lock(&trie_lock);
+	pthread_mutex_lock(&(trie_lock));
 	printf("Delete Thread: Lock Acquired\n");
 
 	printf("DT: Waiting\n");
-	pthread_cond_wait(&node_threshold_cv, &trie_lock);
+	pthread_cond_wait(&node_threshold_cv, &(trie_lock));
 	printf("Condition Met, Executing\n");
 	printf("Current count is: %d\n", node_count);
 	//printf("Warning: not dropping nodes yet.  Drop one node not implemented\n");
@@ -601,7 +635,7 @@ void check_max_nodes()
 	//sleep(1);
 
 	printf("Delete Thread Releasing Lock\n");
-	pthread_mutex_unlock(&trie_lock);
+	pthread_mutex_unlock(&(trie_lock));
 	printf("Delete Thread: Lock Released\n");
 }
 
@@ -617,12 +651,12 @@ void _print(struct trie_node *node)
 
 void print()
 {
-	pthread_mutex_lock(&trie_lock);
+	pthread_mutex_lock(&(trie_lock));
 	printf("Root is at %p\n", root);
 	/* Do a simple depth-first search */
 	if (root)
 		_print(root);
-	pthread_mutex_unlock(&trie_lock);
+	pthread_mutex_unlock(&(trie_lock));
 }
 
 
@@ -658,13 +692,13 @@ int _assert_invariants(struct trie_node *node, int prefix_length, int *error)
 void assert_invariants()
 {
 #ifdef DEBUG
-	//pthread_mutex_lock(&trie_lock);  // whoever calls this has most likely locked it down already
+	//pthread_mutex_lock(&(root->node_lock));  // whoever calls this has most likely locked it down already
 	int err = 0;
 	if (root) {
 		int count = _assert_invariants(root, 0, &err);
 		if (err) print();
 		assert(count == node_count);
 	}
-	//pthread_mutex_unlock(&trie_lock);
+	//pthread_mutex_unlock(&(root->node_lock));
 #endif  // DEBUG
 }
