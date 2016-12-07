@@ -24,7 +24,7 @@ static struct trie_node *root = NULL;
 static int node_count = 0;
 static int max_count = 100;  //Try to stay at no more than 100 nodes
 static int MAX_KEY = 64;
-struct trie_node *keyring;
+
 
 pthread_mutex_t trie_lock;              // full trie_lock
 pthread_cond_t node_threshold_cv;       // cv stands for condition variable
@@ -37,7 +37,6 @@ struct trie_node *new_leaf(const char *string, size_t strlen, int32_t ip4_addres
 	node_count++;
 	if (!new_node) {
 		printf("WARNING: Node memory allocation failed.  Results may be bogus.\n");
-		//pthread_mutex_unlock(&trie_lock);
 		return NULL;
 	}
 	assert(strlen < MAX_KEY);
@@ -49,7 +48,7 @@ struct trie_node *new_leaf(const char *string, size_t strlen, int32_t ip4_addres
 	new_node->ip4_address = ip4_address;
 	new_node->children = NULL;
 
-
+	pthread_mutex_init(&(new_node->node_lock), NULL);
 	return new_node;
 }
 
@@ -142,8 +141,8 @@ _search(struct trie_node *node, const char *string, size_t strlen)
 	int keylen, cmp;
 
 	// First things first, check if we are NULL
-	if (node == NULL) return NULL;
-
+	if (node == NULL)
+		return NULL;
 	assert(node->strlen <= MAX_KEY);
 
 	// See if this key is a substring of the string passed in
@@ -153,23 +152,36 @@ _search(struct trie_node *node, const char *string, size_t strlen)
 
 		// If this key is longer than our search string, the key isn't here
 		if (node->strlen > keylen) {
+			pthread_mutex_unlock(&(node->node_lock));
 			return NULL;
 		} else if (strlen > keylen) {
 			// Recur on children list
+			printf("Getting child lock\n");
+			if (node->children != NULL) pthread_mutex_lock(&(node->children->node_lock));
+			printf("Got child lock, releasing parent\n");
+
+			pthread_mutex_unlock(&node->node_lock);
+			printf("Parent Released\n");
 			return _search(node->children, string, strlen - keylen);
 		} else {
 			assert(strlen == keylen);
-
+			pthread_mutex_unlock(&(node->node_lock));
 			return node;
 		}
 	} else {
 		cmp = compare_keys(node->key, node->strlen, string, strlen, &keylen);
-		if (cmp < 0)
+		if (cmp < 0) {
 			// No, look right (the node's key is "less" than the search key)
+			printf("Getting next lock\n");
+			if (node->next != NULL) pthread_mutex_lock(&(node->next->node_lock));
+			printf("Got next lock, releasing previous\n");
+			pthread_mutex_unlock(&(node->node_lock));
+			printf("Previous Released\n");
 			return _search(node->next, string, strlen);
-		else
-			// Quit early
+		} else {
+			pthread_mutex_unlock(&(node->node_lock));
 			return 0;
+		}
 	}
 }
 
@@ -178,14 +190,18 @@ int search(const char *string, size_t strlen, int32_t *ip4_address)
 {
 	struct trie_node *found;
 
+	printf("Getting root lock\n");
+	pthread_mutex_lock(&(root->node_lock));
+	printf("Acquired root lock\n");
 
 	assert(strlen <= MAX_KEY);
 
 	// Skip strings of length 0
 	if (strlen == 0) {
-		printf("Search: Releasing Lock");
-		pthread_mutex_unlock(&trie_lock);
-		printf("Search: Lock Released");
+		printf("Releasing root lock\n");
+		pthread_mutex_unlock(&(root->node_lock));
+		printf("Released root lock\n");
+
 		return 0;
 	}
 
@@ -193,11 +209,14 @@ int search(const char *string, size_t strlen, int32_t *ip4_address)
 
 	if (found && ip4_address)
 		*ip4_address = found->ip4_address;
-	printf("Search: Releasing Lock");
-	pthread_mutex_unlock(&trie_lock);
-	printf("Search: Lock Released");
+
+
+	printf("Releasing root lock\n");
+	pthread_mutex_unlock(&(root->node_lock));
+	printf("Released root lock\n");
 	return found != NULL;
 }
+
 
 /* Recursive helper function */
 int _insert(const char *string, size_t strlen, int32_t ip4_address,
@@ -576,7 +595,7 @@ void check_max_nodes()
 			sleep(3);
 			break;
 		}
-		printf("Current count is: %d\n", node_count);
+		//printf("Current count is: %d\n", node_count);
 	}
 
 	//sleep(1);
