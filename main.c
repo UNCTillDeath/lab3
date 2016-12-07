@@ -9,6 +9,16 @@
  *
  */
 
+/*
+ * Name:           Onyen           CSlogin
+ * ------------------------------------------
+ * Keith Whitley   Kewhitle        Kewhitle
+ * Ramon Galeana   Plebeian        Plebeian
+ * ------------------------------------------
+ * Honor Pledge: I, Keith Whitley, pledge that I adhered to the Honor Code for this lab
+ * Honor Pledge: I, Ramon Galeana, pledge that I adhered to the Honor Code for this lab
+ */
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>

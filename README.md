@@ -21,3 +21,4 @@ The lock is acquired via `check_max_nodes` which will wait until a signal is giv
 The write lock is only given to a thread if no threads are reading or writing. Once a thread has the write lock, no other function can get a lock until the write lock is released. However, if there are no read locks, then any number of threads can obtain read locks (since reading does not change the structure of the trie, this is thread-safe).
 
 ## EX5
+`fine-trie.c` modifies the structure trie_node to include a mutex. `search()` has been modified to implement a hand over hand approach to locking and unlocking nodes. This allows for multiple threads of `search()` to operate concurrently. The `delete()` and `insert()` threads locks down root then locks every node in its path to prevent other threads from changing properties of the trie, but allows `search()` to finish out its operation.

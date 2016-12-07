@@ -2,6 +2,16 @@
 /* vim: set ts=4 sw=4 et tw=78 fo=cqt wm=0: */
 /* A simple, (reverse) trie.  Only for use with 1 thread. */
 
+/*
+ * Name:           Onyen           CSlogin
+ * ------------------------------------------
+ * Keith Whitley   Kewhitle        Kewhitle
+ * Ramon Galeana   Plebeian        Plebeian
+ * ------------------------------------------
+ * Honor Pledge: I, Keith Whitley, pledge that I adhered to the Honor Code for this lab
+ * Honor Pledge: I, Ramon Galeana, pledge that I adhered to the Honor Code for this lab
+ */
+
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -177,9 +187,7 @@ _search(struct trie_node *node, const char *string, size_t strlen)
 
 int search(const char *string, size_t strlen, int32_t *ip4_address)
 {
-	printf("Search obtaining lock\n");
 	pthread_rwlock_rdlock(&read_write_lock);
-	printf("Search obtained lock\n");
 
 	struct trie_node *found;
 
@@ -187,18 +195,14 @@ int search(const char *string, size_t strlen, int32_t *ip4_address)
 
 	// Skip strings of length 0
 	if (strlen == 0) {
-		printf("Search releasing lock\n");
 		pthread_rwlock_unlock(&read_write_lock);
-		printf("Search released lock\n");
 		return 0;
 	}
 
 	found = _search(root, string, strlen);
 
 	if (found && ip4_address) *ip4_address = found->ip4_address;
-	printf("Search releasing lock\n");
 	pthread_rwlock_unlock(&read_write_lock);
-	printf("Search released lock\n");
 	return found != NULL;
 }
 
@@ -329,27 +333,16 @@ void assert_invariants();
 
 int insert(const char *string, size_t strlen, int32_t ip4_address)
 {
-	printf("Insert: Acquiring Mutex Lock\n");
 	pthread_mutex_lock(&trie_lock); // used for the condition
-	printf("Insert: Acquired Mutex Lock\n");
 
 
-	printf("Insert: Acquiring Write\n");
 	pthread_rwlock_wrlock(&read_write_lock);
-	printf("Insert: Write_Lock Acquired\n");
-
-
-
-
-	printf("Inserting %s with length %zd", string, strlen);
 
 	assert(strlen <= MAX_KEY);
 
 	// Skip strings of length 0
 	if (strlen == 0) {
-		printf("Insert: Releasing Mut_Lock\n");
 		pthread_mutex_unlock(&trie_lock);               // unlocks because we won't be signaling
-		printf("Insert: Releasing Write_lock\n");
 		pthread_rwlock_unlock(&read_write_lock);        // nothing to see here
 		return 0;
 	}
@@ -358,32 +351,22 @@ int insert(const char *string, size_t strlen, int32_t ip4_address)
 	/* Edge case: root is null */
 	if (root == NULL) {
 		root = new_leaf(string, strlen, ip4_address);
-		if (node_count > max_count) { // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
-			printf("Too many nodes; Signaling\n\n");
+		if (node_count > max_count)   // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
 			pthread_cond_signal(&node_threshold_cv);
-		}
 
-		printf("Insert: Releasing Mut_Lock\n");
 		pthread_mutex_unlock(&trie_lock);
 
-		printf("Insert: Releasing Write_Lock\n");
 		pthread_rwlock_unlock(&read_write_lock);
-		printf("This was a root==Null case\n");
 		return 1;
 	}
 
 	int rv = _insert(string, strlen, ip4_address, root, NULL, NULL);
 	assert_invariants();
 
-	if (node_count > max_count) { // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
-		printf("Too many nodes; Signaling\n\n\n\n\n\n");
+	if (node_count > max_count)   // if node_count has reached over max_count, send out the signal for the condition variable node_threshold_cv
 		pthread_cond_signal(&node_threshold_cv);
-	}
-	printf("Insert: Releasing Mut_Lock\n");
 	pthread_mutex_unlock(&trie_lock);
-	printf("Insert: Releasing Write_Lock\n");
 	pthread_rwlock_unlock(&read_write_lock);
-	printf("This was a rv good case\n");
 	return rv;
 }
 
@@ -488,14 +471,10 @@ int delete(const char *string, size_t strlen)
 {
 	// Skip strings of length 0
 
-	printf("Delete: Acquiring Lock\n");
 	pthread_rwlock_wrlock(&read_write_lock);
-	printf("Delete: Lock Acquired\n");
 
 	if (strlen == 0) {
-		printf("Delete: Releasing Lock\n");
 		pthread_rwlock_unlock(&read_write_lock);
-		printf("Delete: Lock Released\n");
 		return 0;
 	}
 
@@ -504,13 +483,10 @@ int delete(const char *string, size_t strlen)
 
 	int rv = (NULL != _delete(root, string, strlen));
 	if (rv)
-		printf("Delete succesful\n");
 
-	assert_invariants();
+		assert_invariants();
 
-	printf("Delete: Releasing Lock\n");
 	pthread_rwlock_unlock(&read_write_lock);
-	printf("Delete: Lock Released\n");
 	return rv;
 }
 
@@ -523,11 +499,9 @@ char *combineKey(char *prefix, char *suffix)
 	char *temp_pre = strdup(prefix);
 	char *temp_suf = strdup(suffix);
 
-	printf("Prefix: %s \nSuffix: %s\n", prefix, suffix);
 	if (strlen(suffix) == 0)
 		return temp_pre;
 	strcat(temp_pre, temp_suf); // append old stuff
-	printf("New KEY: %s\n", temp_pre);
 
 	return temp_pre;
 }
@@ -538,8 +512,8 @@ char *combineKey(char *prefix, char *suffix)
  */
 int drop_one_node()
 {
-	printf("Dropping Node\n");
 	char key_to_delete[MAX_KEY + 1]; // plus 1 because of behaviourss of strncpy and strndup adding a \0 at n + q if src > dest
+
 	key_to_delete[0] = '\0';
 
 	struct trie_node *current = root;
@@ -547,20 +521,15 @@ int drop_one_node()
 
 	if (!(current->children)) { // current doesn't have children
 		temp_key = strdup(current->key);
-		//printf("Current Key: %s at Node: %p \n", current->key, &current);
-		printf("Found key on first level\n");
 		strcpy(key_to_delete, temp_key);
 	} else {
 		while (current != NULL) {
 			temp_key = strndup(current->key, current->strlen);
-			//temp_key[current->strlen] = '\0';
-			//printf("CURRENT KEY: %s at Node %p %p with length %d\n", current->key, &current, current,current->strlen);
 			if (!(current->children)) {
 				printf("No Children, Deleting\n");
 				strncpy(key_to_delete, combineKey(temp_key, key_to_delete), MAX_KEY);
 				break;
 			} else if (current->next == NULL) {
-				//printf("Reached end of next, key is: %s\n", current->key);
 				strcpy(key_to_delete, combineKey(temp_key, key_to_delete));
 
 				current = current->children;
@@ -569,48 +538,32 @@ int drop_one_node()
 			}
 		}
 	}
-	//printf("Key: %sl with length %zd\n", key_to_delete, strlen(key_to_delete));
-
-
-	if (_delete(root, key_to_delete, strlen(key_to_delete))) {
-		printf("Delete Successful\n");
+	if (_delete(root, key_to_delete, strlen(key_to_delete)))
 
 		return 0;
-	} else {
+	else
 		return 1;
-	}
 }
 
 /* Check the total node count; see if we have exceeded a the max.
  */
 void check_max_nodes()  // encapsulates drop_one_node
 {
-	printf("Checking Max Nodes\n");
-
-
 	pthread_mutex_lock(&trie_lock);
 
 	//printf("Delete Thread: Lock Acquired\n");
-	printf("DT: Waiting\n");
 	pthread_cond_wait(&node_threshold_cv, &trie_lock);
 	pthread_rwlock_wrlock(&read_write_lock);
 
-	printf("Condition Met, Executing\n");
-
 	while (node_count > max_count) {
-		printf("Current count is: %d\n", node_count);
 		if (drop_one_node()) {
 			printf("drop_one_node failed");
 			sleep(3);
 			break;
 		}
-		printf("Current count is: %d\n", node_count);
 	}
-	printf("Delete Thread Releasing Lock\n");
 	pthread_mutex_unlock(&trie_lock);
 	pthread_rwlock_unlock(&read_write_lock);
-	printf("Delete Thread: Lock Released\n");
-	//sleep(1);
 }
 void _print(struct trie_node *node)
 {
